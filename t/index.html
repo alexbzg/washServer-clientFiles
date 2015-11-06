@@ -1,0 +1,303 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"                                                
+"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" land="ru" xml:lang="en" ng-app="washApp">
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+        <meta http-equiv="Content-Language" content="ru-ru"/>
+        <meta name="description" content="" />
+        <meta name="keywords" content="" />
+        <title>Мойка</title>
+        <link href="style.css" rel="stylesheet" type="text/css">
+        <link rel="icon" href="favicon.ico" type="image/x-icon">
+        <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
+        <script src="angular.min.js"></script>        
+        <script src="angular-sanitize.min.js"></script>        
+        <script src="xml2json.js"></script>        
+        <script src="controllers.js"></script> 
+        <script src="pythonics.js"></script> 
+    </head>
+    <body ng-controller="washCtrl">
+        <table id="main">
+            <tr ng-repeat="row in sortedDevices">
+                <td ng-repeat-start="device in row" ng-if="$last">
+                    <!--img ng-if="device.parentId" 
+                        ng-src="{{'images/icon_connect_' + 
+                        ( device.linked ? 'on' : 'off' ) + '.png'}}"
+                        ng-click="device.toggleLink()"/-->
+                </td>
+                <td ng-repeat-end>
+                    <table class="one_wash" id="wash{{device.id}}">
+                        <tr>
+                            <td rowspan="2" class="wash_number" 
+                                ng-class="{ active_wash: device.active && device.controllersConnection,
+                                            p_connection: device.controllersConnection == null,
+                                            no_connection: device.controllersConnection != null &&
+                                                !device.controllersConnection }" 
+                                ng-click="device.click()">
+                                {{device.name}}
+                            </td>
+                            <td class="wash_sum">
+                                <div class="time_in">{{device.operation.start}}</div>
+                                <span class="sum">{{device.operation.stringTotal}}</div>
+                            </td>
+                            <td class="car_number" colspan="4" 
+                                ng-click="keyboard.open( device )">
+                                <div class="prev">{{device.carData.car.prev}}</div>
+                                <div class="lp" ng-bind-html="device.decCaption">
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="wash_option" ng-class="{ active_option: service.active }" 
+                                id="service.id" ng-repeat="service in device.sortedServices">
+                                <h4>{{service.name}}</h4>
+                                <span class="time">{{service.operationDetail.time}}</span>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+       
+        </table>
+
+        <table id="main_bottom">
+            <tr ng-repeat="row in operationsButtons">
+                <td class="session_ended_number" ng-repeat="operation in row"
+                    ng-click="sessionWindow.open( operation )" 
+                    ng-bind-html="operation.decCaption"
+                    ng-class="{'nonpayer': operation.carData.car.notpayed}">
+                </td>
+                <td ng-if="$first && autoDevices.length > 0"  
+                    rowspan="{{operationsButtons.length}}" 
+                    ng-click="sessionWindow.openAuto();">
+                        <img src="images/icon_a.png" />
+                </td>
+                <td ng-if="$first"  rowspan="{{operationsButtons.length}}" 
+                    ng-click="shiftWindow.show()" id="tech">
+                    <img src="images/icon_tech.png"/>
+                </td>
+            </tr>
+        </table>
+
+        <div id="keyboard" ng-show="keyboard.visible" class="child_window">
+            <table id="keyboard">
+                <tr>
+                    <td class="key_wash" ng-click="keyboard.device.click()"
+                        ng-class="{ active_wash: keyboard.device.active }"
+                        >{{keyboard.device.name}}</td>
+                    <td id="key_number">{{keyboard.value}}</td>
+                    <td id="key_home" ng-click="keyboard.close( false )">
+                        <img src="images/icon_home.png" />
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="3">			
+                        <div id="car_number_hint">
+                            <table id="car_number_hint">
+                                <tr>
+                                    <td ng-repeat="hint in keyboard.hints"
+                                        ng-click="keyboard.value = hint.lp; keyboard.hints = null;">
+                                        {{hint.lp}}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                        <table id="keys" ng-repeat="table in keyboard.keys">
+                            <tr ng-repeat="row in table">
+                                <td ng-repeat="key in row" 
+                                    ng-click="keyboard.add( key )">
+                                    {{key}}
+                                </td>
+                            </tr>
+                        </table>
+                        <table id="keys">
+                            <tr>
+                                <td colspan="2" class="key2" 
+                                    ng-click="keyboard.setState( 'noLP')">Без номера</td>
+
+                                <td class="key2" ng-repeat="client in keyboard.clientButtons"
+                                    ng-click="keyboard.onClientButton( client );">
+                                    <img ng-src="images/client-buttons/{{client.image}}"/>
+                                </td>
+
+                                <td colspan="2" class="key2" 
+                                    ng-click="keyboard.setState( 'serviceMode' )">Диспетчер</td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td id="key_del" ng-click="keyboard.backspace();">
+                        <img src="images/icon_del.png" />
+                    </td>
+                    <td>
+                        <table id="keys_region">
+                            <tr>
+                                <td ng-repeat="region in keyboard.regions" 
+                                    ng-click="keyboard.add( region );" >
+                                    &nbsp;{{region}}
+                                </td>
+                            </tr>
+                        </table>
+
+                    </td>
+                    <td id="key_ok" ng-click="keyboard.close( true );">ОК</td>
+                </tr>
+            </table>
+        </div>
+    
+        <div id="session_window" ng-show="sessionWindow.visible" class="child_window">
+            <table id="session">
+                <tr>
+                    <td id="session_time">
+                        <span class="wash">
+                            {{sessionWindow.operation.device.name}}
+                        </span><br/>
+                        <span class="start">
+                            {{sessionWindow.operation.start}}
+                        </span><br/>
+                        <span class="stop">
+                            {{sessionWindow.operation.stop}}
+                        </span>
+                    </td>
+                    <td id="session_number" ng-click="keyboard.open( sessionWindow.operation )"
+                        ng-bind-html="sessionWindow.operation.carData.caption"
+                        ng-class="{'alert': sessionWindow.carAlert}"></td>
+                    <td id="key_home" ng-click="sessionWindow.hide();">
+                        <img src="images/icon_home.png" />
+                    </td>
+                </tr>
+            </table>
+            <div id="payment_data">
+                <div id="session_payment" ng-if="!sessionWindow.operation.carData.serviceMode &&
+                    sessionWindow.operation.carData.client == null">
+                    <div id="balance_info" ng-if="sessionWindow.operation.carData.car.notpayed">
+                        <span ng-repeat="item in sessionWindow.operation.carData.car.notpayed">
+                            {{item.start}} долг: {{item.total}}
+                            руб.<br/>
+                        </span>
+                    </div>
+                    <table id="session_pay_btns">
+                        <tr>
+                            <td class="btns">
+                                <div id="btn_no" ng-click="sessionWindow.close( false )">
+                                    НЕ ОПЛАЧЕНО
+                                </div>
+                            </td>
+                            <td id="session_summ" no-ng-click="session.showKeyboard()">
+                                {{sessionWindow.operation.stringTotal}}
+                            </td>
+                            <td class="btns">
+                                <div id="btn_yes" ng-click="sessionWindow.close( true )">
+                                    ОПЛАЧЕНО
+                                </div>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <div id="session_service" ng-if="sessionWindow.operation.carData.serviceMode || 
+                    sessionWindow.operation.carData.client != null">
+                    <div id="balance_info"></div>
+                    <table id="session_dispatcher">
+                        <tr>
+                            <td><div id="btn_disp" ng-click="sessionWindow.close( false );">
+                                    В отчет
+                            </div></td>
+                        </tr>
+                    </table>
+                </div>
+              
+            </div>
+            <div id="session_data">
+                <table id="session_info" ng-if="!sessionWindow.operation.auto">
+                    <tr>
+                        <td colspan="2" class="session_info_top" 
+                            ng-repeat="item in sessionWindow.operation.detailData | orderBy:'id'">
+                            {{item.name}}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="session_info_time" 
+                            ng-repeat-start=
+                            "item in sessionWindow.operation.detailData | orderBy:'id'">
+                            {{item.time}}
+                        </td>
+                        <td class="session_info_time" 
+                            ng-repeat-end>
+                            {{item.stringTotal == '' ? '0' : item.stringTotal}}
+                        </td>
+                    </tr>
+                </table>
+                <table id="alt_wash" ng-if="sessionWindow.operation.auto">
+                    <tr>
+                        <td id="auto_device_{@id}" class="device" 
+                            ng-click="sessionWindow.setAutoDevice( device );"
+                            ng-repeat-start="device in autoDevices"
+                            ng-class="{'active': sessionWindow.operation.device == device}">
+                            {{device.name}}
+                        </td>
+                        <td ng-if="!$last" ng-repeat-end>&nbsp;</td>
+                   </tr>
+                </table>
+
+            </div>
+        </div>
+
+        <div class="child_window" id="shift_window" ng-show="shiftWindow.visible">
+            <table id="system">
+                <tr>
+                    <td id="system_date" >
+                        <span class="shift_time"/>{{shiftWindow.start}}<br/>
+                    </td>
+                    <td>
+                        <select name="operator" id="shift_operator"
+                            ng-model="shiftWindow.selectedOperator"
+                            ng-change="shiftWindow.newShiftQuery()"
+                            ng-options="operator.name for operator in shiftWindow.operators
+                                track by operator.id"/>
+                        </select>
+                    </td>
+                    <td id="system_home" ng-click="shiftWindow.visible = false;">
+                        <img src="images/icon_home.png" />
+                    </td>
+                </tr>
+                <tr>
+                    <td id="system_info" colspan="3">
+                        <span class="shift_sum">
+                            машины: {{shiftWindow.qty}}<br/>
+                            Сумма: {{shiftWindow.total}} руб.
+                        </span><br/>
+                        <span class="no_pay">
+                            неоплачено {{shiftWindow.notpayed}} руб.
+                        </span>
+                    </td>
+                </tr>
+                <!--tr>
+                    <td><xsl:text disable-output-escaping="yes">&amp;</xsl:text>nbsp;</td>
+                </tr-->
+            </table>
+            <div id="sensor_title">Датчики присутствия</div>
+                <table id="sensor">
+                    <tr id="images">
+                        <td ng-repeat="device in devices"
+                            ng-class="{'sensor_on': device.detectsPresence,
+                            'sensor_off': !device.detectsPresence }">
+                            {{device.name}}
+                        </td>
+                    </tr>
+                    <tr id="buttons">
+                        <td ng-repeat="device in devices">
+                            <input type="button" 
+                                ng-click="device.togglePresenceDetector()"
+                                value="{{device.detectsPresence ? 'Выключить' : 'Включить'}}"/>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+       
+
+        
+    </body>
+</html>
+

@@ -1,0 +1,469 @@
+body{
+	font:11px Arial, Helvetica, sans-serif;
+	color:#000;	
+	margin:0; padding:0;
+	text-align: center;
+	background-color: #ccc;
+	cursor: default;
+}
+table#main{
+	width: 100%;
+	margin: 0 auto;
+	background-color: #ccc;
+	border-collapse: collapse;
+	text-align: center;
+}
+table#main td{
+	margin:0; padding: 5px;
+}
+
+table.one_wash{
+	width: 100%;
+	margin: 0; padding: 0;
+	background-color: #fff;
+	border: 2px solid black;
+	border-collapse: collapse;
+}
+table.one_wash td{	
+	margin: 0; padding: 0;
+	font-weight: bold;	
+	border: 1px solid #555;
+}
+
+table.one_wash td.wash_number{
+	font-size: 130px;
+	vertical-align: middle;	
+	line-height: 130px;
+	border-right: 2px solid black;
+}
+
+.active_wash{	background: url(images/bg_active_wash.png) repeat-x top;}
+.paused_wash{	background: url(images/bg_paused_wash.png) top;  color:#070; }
+.no_connection{	background: url(images/bg_no_connection.png) repeat-x top; color:#fff; }
+.p_connection{	background: url(images/bg_p_connection.png) repeat-x top;  color:#fff; }
+.active_option{	background: url(images/bg_active_option.png) top;}
+.unused_option{ color: #ccc;}
+.alert{ background-color: #f00; }
+
+table#main td.wash_sum{
+	vertical-align: top;
+	font-size: 30px;
+	color: #c00;
+}
+.time_in{
+	font-size: 20px;
+	color: #009;
+	text-align: left;
+	margin:	0 0 15px 5px;
+}
+
+table.one_wash  td.car_number{
+	font-size: 50px;
+	color: #000;
+    vertical-align: text-bottom;
+	vertical-align: bottom;
+	line-height: 60px;
+	height: 60px;
+}
+table.one_wash span.car_number_digit{
+	font-size: 50px;
+	color: #000;
+}
+.prev {float: right; font-size: 20px; color: #090; padding: 0 5px 0 0;}
+
+
+table.one_wash td.wash_option {
+	width: 16%; 
+	vertical-align: top;
+	font-size: 25px;
+	color: #700;
+	line-height: 25px;
+}
+table.one_wash .wash_option  h4{
+	font-size: 15px;
+	color: #777;
+	margin:5px 0 5px 0; padding:0;	
+	line-height: 15px;
+}
+
+
+table#main_bottom{
+	width: 1300px;
+	margin: 0 auto;
+	background-color: #fff;
+	border-collapse: collapse;
+	text-align: center;
+}
+table#main_bottom td{
+	margin:0; padding:0;
+	border: 1px solid black;
+	height: 50px;
+	WIDTH: 20%;
+	vertical-align: bottom;
+	font-size: 30px;
+	color: #555;
+	font-weight: bold;
+}
+
+
+table#main_bottom span.car_number_digit{
+	font-size: 40px;
+	color: #000;
+}
+
+table#main_bottom td.nonpayer {
+    color: #f00
+}
+
+table#main_bottom td.nonpayer span.car_number_digit {
+    color: #f00
+}
+
+div.child_window {
+    position: fixed;
+    top: 0;
+    left: 0;
+                    
+    width: 100%;
+    height: 100%;
+                            
+    background-color: #EEE;
+    #color: #FFF;
+}
+
+div#keyboard {
+    z-index: 20;
+}
+
+div#ksession_window div#shift_window{
+    z-index: 10;
+}
+
+
+table#keyboard{
+	width: 1300px;
+	margin: 0 auto;
+	border-collapse: collapse;
+	text-align: center;
+	height: 640px;
+}
+table#keyboard td{
+	margin:0; padding:0;
+	vertical-align: middle;
+	color: #000;
+	font-size: 50px;
+	font-weight: bold;
+}
+table#keyboard td.key_wash{
+	height: 150px;
+	font-size: 130px;
+	width: 150px;	
+	border: 1px solid black;
+}
+table#keyboard td#key_number{
+	font-size: 120px;
+	background-color: #fff;
+	border: 1px solid black;
+}
+td#key_home{
+	font-size: 30px;
+	width: 150px;	
+	background-color: #ff0;
+	border: 1px solid black;
+}
+table#keyboard td#key_del{
+	height: 90px;
+	font-size: 30px;
+	width: 108px;	
+	border: 1px solid black;
+	background-color: #ccc;
+}
+table#keyboard td#key_ok{
+	height: 90px;
+	font-size: 60px;
+	border: 1px solid black;
+	background-color: #0f0;
+}
+
+table#keys{
+	width: 1200px;	
+	margin: 0 auto;	
+	border-collapse: collapse;
+}
+table#keys td{
+	height: 80px;
+	width: 200px;
+	border: 1px solid black;
+	background: #fff;
+	font-size: 80px;
+}
+table#keys td.key2{	font-size: 40px;	color: #070;	height: 60px;}
+table#keys_region{
+	width: 900px;	
+	margin: 0 auto;	
+}
+table#keys_region td{
+	height: 50px;
+	border: 1px solid black;
+	background: #fff;
+	font-size: 80px;
+}
+
+div#car_number_hint{
+	height: 80px;
+}
+table#car_number_hint{
+    width: 1300px;
+    margin: 5px auto;
+    text-align: center;    
+}
+table#car_number_hint td{
+	width: 25%;
+    margin: 0; 
+	padding: 0;
+    color: #009;
+    font-size: 50px;
+    font-weight: bold;
+	border: 1px solid black;
+	background-color: #fff;	
+}
+
+table#session{
+	width: 1300px;
+	margin: 0 auto;
+	border-collapse: collapse;
+	text-align: center;
+	height: 150px;
+	background-color: #fff;
+}
+table#session td{
+	margin:0; padding:0;
+	vertical-align: middle;
+	color: #000;
+	font-size: 50px;
+	font-weight: bold;
+	border: 1px solid black;
+}
+table#session td#session_time{
+	height: 150px;
+	font-size: 30px;
+	width: 150px;	
+}
+table#session td#session_time span{
+	font-size: 30px;
+	color: #900;
+}
+
+table#session  td#session_number{
+	font-size: 100px;
+	color: #555;
+    vertical-align: text-bottom;
+	vertical-align: bottom;
+}
+table#session  span#car_number_digit{
+	font-size: 140px;
+	color: #000;
+}
+
+#balance_info{
+	width: 1300px;	
+	color: #700;
+	font-size: 30px;
+	margin: 10px auto 0 auto;
+}
+
+table#session_pay_btns{
+	width: 1300px;	
+	margin: 30px auto;
+	border-collapse: collapse;
+	font-weight: bold;
+}
+table#session_pay_btns td.btns{ 	width: 300px; }
+#btn_no{
+	height: 80px;
+	width: 250px;
+	background-color: #f00;
+	border: 1px solid #700;
+	font-size: 30px;
+	padding: 40px 0 0 0;
+	margin: 0 40px 0 0;
+}
+
+#btn_yes{
+	height: 80px;
+	width: 250px;
+	background-color: #0f0;
+	border: 1px solid #070;
+	font-size: 30px;
+	padding: 40px 0 0 0;
+	margin: 0 0 0 40px;
+}
+td#session_summ{
+	background-color: #fff;
+	border: 1px solid #777;
+	font-size: 150px;
+}
+
+table#session_info{
+	width: 1300px;	
+	height: 10px;	
+	margin: 0 auto;
+	border-collapse: collapse;
+	background-color: #fff
+}
+
+table#session_info td{
+width: 108.3px;  
+	margin:0;
+	vertical-align: middle;
+	font-weight: bold;
+	border: 1px solid #999;
+}
+
+td.session_info_top{
+	margin:0; 
+	color: #ff6;
+	font-size: 30px;
+	padding: 0;
+	background-color: #333;
+}
+table#session_info span{	font-size: 15px;}
+
+td.session_info_time{	color: #333;    font-size: 25px;	padding: 5px 0; background-color: #ff6; }
+td.session_info_total{	color: #900;	font-size: 30px;	padding: 5px 0; }
+
+td.extra_toggler{
+	font-size: 30px;
+	padding: 5px 0;
+}
+td.active_extra{	background-color: #0f0;}
+
+
+
+table#session_keys{
+	width: 1200px;	
+	margin: 0 auto;	
+	border-collapse: collapse;
+	background: #fff;
+}
+table#session_keys td{
+	height: 90px;
+	width: 200px;
+	border: 1px solid black;
+	font-size: 90px;
+}
+.grey_keys{background-color: #aaa;}
+
+
+table#session_dispatcher{
+	width: 1200px;	
+	height: 350px;
+	margin: 0 auto;	
+	border-collapse: collapse;
+	font-weight: bold;
+}
+#btn_disp{
+	width: 300px;
+	background-color: #0f0;
+	border: 1px solid #070;
+	font-size: 50px;
+	padding: 20px 0;
+	margin: 0 auto;
+}
+
+table#alt_wash{
+	width: 700px;	
+	margin: 30px auto;
+	border-collapse: collapse;
+	font-weight: bold;
+	font-size: 40px;
+}
+table#alt_wash td{
+	height: 70px;
+	margin: 0 40px 0 0;
+	padding: 25px 0 0 0;
+	vertical-align: top;
+}
+table#alt_wash td.device{
+    width: 330px; 
+    background-color: #ddd; 
+    border: 1px solid #777;
+}
+
+table#alt_wash td.active{
+    background-color: #0f0;
+}
+
+
+table#system{
+    width: 1300px;
+    margin: 0 auto;
+    border-collapse: collapse;
+    text-align: center;
+    background-color: #fff;
+    border: 1px solid black;	
+}
+table#system td{
+    margin:0; padding: 0;
+    vertical-align: top;
+    color: #000;
+    font-size: 20px;
+    font-weight: bold;
+}
+table#system td#system_date{padding: 50px 0;width: 300px; color: #a00; font-size: 30px;}
+table#system select{
+     margin: 50px 0 0 0;
+     font-size: 50px;
+     color: #00c;
+     border: 1px solid #eee;
+}
+td#system_home{width: 150px;height: 150px;}
+td#system_home img{
+     padding: 50px;
+     background-color: #ff0;
+     border: 1px solid black;
+}
+table#system td#system_info{
+     padding: 0 0 20px 0;
+     color: #bbb;
+}
+table#system td#system_info span.no_pay{
+	color: #bbb;
+	font-size: 20px;
+}
+
+/*                              Òàáëèöà äàò÷èêîâ ïðèñóòñòâèÿ                      */
+#sensor_title{
+    margin: 20px auto 10px auto;
+	font-size: 30px;
+}
+ table#sensor{
+    margin: 0 auto;
+    border-collapse: collapse;
+    text-align: center;
+}
+table#sensor td{
+    margin:0; padding: 10px 0 0 0;
+    vertical-align: top;    
+    font-weight: bold;
+	width: 100px;
+}
+table#sensor td.sensor_off{
+    background: url(images/bg_sensor_off.png) no-repeat;
+	height: 90px;
+	font-size: 70px;
+	color: #700;
+}
+table#sensor td.sensor_on{
+    background: url(images/bg_sensor_on.png) no-repeat;
+	height: 90px;
+	font-size: 70px;
+	color: #070;
+}
+table#sensor input{
+    padding: 5px 3px;
+}
+
+
+
+
