@@ -135,7 +135,7 @@ div#keyboard {
     z-index: 20;
 }
 
-div#ksession_window {
+div#ksession_window div#shift_window{
     z-index: 10;
 }
 
@@ -369,6 +369,99 @@ table#session_dispatcher{
 	font-size: 50px;
 	padding: 20px 0;
 	margin: 0 auto;
+}
+
+table#alt_wash{
+	width: 700px;	
+	margin: 30px auto;
+	border-collapse: collapse;
+	font-weight: bold;
+	font-size: 40px;
+}
+table#alt_wash td{
+	height: 70px;
+	margin: 0 40px 0 0;
+	padding: 25px 0 0 0;
+	vertical-align: top;
+}
+table#alt_wash td.device{
+    width: 330px; 
+    background-color: #ddd; 
+    border: 1px solid #777;
+}
+
+table#alt_wash td.active{
+    background-color: #0f0;
+}
+
+
+table#system{
+    width: 1300px;
+    margin: 0 auto;
+    border-collapse: collapse;
+    text-align: center;
+    background-color: #fff;
+    border: 1px solid black;	
+}
+table#system td{
+    margin:0; padding: 0;
+    vertical-align: top;
+    color: #000;
+    font-size: 20px;
+    font-weight: bold;
+}
+table#system td#system_date{padding: 50px 0;width: 300px; color: #a00; font-size: 30px;}
+table#system select{
+     margin: 50px 0 0 0;
+     font-size: 50px;
+     color: #00c;
+     border: 1px solid #eee;
+}
+td#system_home{width: 150px;height: 150px;}
+td#system_home img{
+     padding: 50px;
+     background-color: #ff0;
+     border: 1px solid black;
+}
+table#system td#system_info{
+     padding: 0 0 20px 0;
+     color: #bbb;
+}
+table#system td#system_info span.no_pay{
+	color: #bbb;
+	font-size: 20px;
+}
+
+/*                              Òàáëèöà äàò÷èêîâ ïðèñóòñòâèÿ                      */
+#sensor_title{
+    margin: 20px auto 10px auto;
+	font-size: 30px;
+}
+ table#sensor{
+    margin: 0 auto;
+    border-collapse: collapse;
+    text-align: center;
+}
+table#sensor td{
+    margin:0; padding: 10px 0 0 0;
+    vertical-align: top;    
+    font-weight: bold;
+	width: 100px;
+}
+table#sensor td.sensor_off{
+    background: url(images/bg_sensor_off.png) no-repeat;
+	height: 90px;
+	font-size: 70px;
+	color: #700;
+}
+table#sensor td.sensor_on{
+    background: url(images/bg_sensor_on.png) no-repeat;
+	height: 90px;
+	font-size: 70px;
+	color: #070;
+}
+table#sensor input{
+    padding: 5px 3px;
 }
 
 

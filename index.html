@@ -12,13 +12,20 @@
         <link rel="shortcut icon" href="favicon.ico" type="image/x-icon">
         <script src="angular.min.js"></script>        
         <script src="angular-sanitize.min.js"></script>        
+        <script src="xml2json.js"></script>        
         <script src="controllers.js"></script> 
         <script src="pythonics.js"></script> 
     </head>
     <body ng-controller="washCtrl">
         <table id="main">
             <tr ng-repeat="row in sortedDevices">
-                <td ng-repeat="device in row">
+                <td ng-repeat-start="device in row" ng-if="$last">
+                    <!--img ng-if="device.parentId" 
+                        ng-src="{{'images/icon_connect_' + 
+                        ( device.linked ? 'on' : 'off' ) + '.png'}}"
+                        ng-click="device.toggleLink()"/-->
+                </td>
+                <td ng-repeat-end>
                     <table class="one_wash" id="wash{{device.id}}">
                         <tr>
                             <td rowspan="2" class="wash_number" 
@@ -59,6 +66,15 @@
                     ng-click="sessionWindow.open( operation )" 
                     ng-bind-html="operation.decCaption"
                     ng-class="{'nonpayer': operation.carData.car.notpayed}">
+                </td>
+                <td ng-if="$first && autoDevices.length > 0"  
+                    rowspan="{{operationsButtons.length}}" 
+                    ng-click="sessionWindow.openAuto();">
+                        <img src="images/icon_a.png" />
+                </td>
+                <td ng-if="$first"  rowspan="{{operationsButtons.length}}" 
+                    ng-click="shiftWindow.show()" id="tech">
+                    <img src="images/icon_tech.png"/>
                 </td>
             </tr>
         </table>
@@ -145,7 +161,8 @@
                         </span>
                     </td>
                     <td id="session_number" ng-click="keyboard.open( sessionWindow.operation )"
-                        ng-bind-html="sessionWindow.operation.carData.caption"></td>
+                        ng-bind-html="sessionWindow.operation.carData.caption"
+                        ng-class="{'alert': sessionWindow.carAlert}"></td>
                     <td id="key_home" ng-click="sessionWindow.hide();">
                         <img src="images/icon_home.png" />
                     </td>
@@ -211,11 +228,12 @@
                         </td>
                     </tr>
                 </table>
-                <table id="alt_wash" ng-if="sessionWindow.auto">
+                <table id="alt_wash" ng-if="sessionWindow.operation.auto">
                     <tr>
                         <td id="auto_device_{@id}" class="device" 
-                            ng-click="sessionWindow.session.setDevice( device.id );"
-                            ng-repeat-start="device in autoDevices">
+                            ng-click="sessionWindow.setAutoDevice( device );"
+                            ng-repeat-start="device in autoDevices"
+                            ng-class="{'active': sessionWindow.operation.device == device}">
                             {{device.name}}
                         </td>
                         <td ng-if="!$last" ng-repeat-end>&nbsp;</td>
@@ -224,6 +242,60 @@
 
             </div>
         </div>
+
+        <div class="child_window" id="shift_window" ng-show="shiftWindow.visible">
+            <table id="system">
+                <tr>
+                    <td id="system_date" >
+                        <span class="shift_time"/>{{shiftWindow.start}}<br/>
+                    </td>
+                    <td>
+                        <select name="operator" id="shift_operator"
+                            ng-model="shiftWindow.selectedOperator"
+                            ng-change="shiftWindow.newShiftQuery()"
+                            ng-options="operator.name for operator in shiftWindow.operators
+                                track by operator.id"/>
+                        </select>
+                    </td>
+                    <td id="system_home" ng-click="shiftWindow.visible = false;">
+                        <img src="images/icon_home.png" />
+                    </td>
+                </tr>
+                <tr>
+                    <td id="system_info" colspan="3">
+                        <span class="shift_sum">
+                            машины: {{shiftWindow.qty}}<br/>
+                            Сумма: {{shiftWindow.total}} руб.
+                        </span><br/>
+                        <span class="no_pay">
+                            неоплачено {{shiftWindow.notpayed}} руб.
+                        </span>
+                    </td>
+                </tr>
+                <!--tr>
+                    <td><xsl:text disable-output-escaping="yes">&amp;</xsl:text>nbsp;</td>
+                </tr-->
+            </table>
+            <div id="sensor_title">Датчики присутствия</div>
+                <table id="sensor">
+                    <tr id="images">
+                        <td ng-repeat="device in devices"
+                            ng-class="{'sensor_on': device.detectsPresence,
+                            'sensor_off': !device.detectsPresence }">
+                            {{device.name}}
+                        </td>
+                    </tr>
+                    <tr id="buttons">
+                        <td ng-repeat="device in devices">
+                            <input type="button" 
+                                ng-click="device.togglePresenceDetector()"
+                                value="{{device.detectsPresence ? 'Выключить' : 'Включить'}}"/>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+       
 
         
     </body>

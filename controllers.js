@@ -11,7 +11,9 @@ function Device( data ) {
     this.carDataModified = false;
     this.services = {};
     this.sortedServices = [];
+    this.childDevices = [];
     this.carData = new CarData();
+    this.linked = false;
     for ( var id in data.services ) {
         var service = new Service( this, data.services[ id ] );
         this.services[ id ] = service;
@@ -50,6 +52,38 @@ Device.prototype._decCaption = function() {
 };
 
 
+Device.prototype.toggleLink = function() {
+    this.linked = !this.linked;
+    checkLink();
+}
+
+Device.prototype.togglePresenceDetector = function() {
+    this.detectsPresence = !this.detectsPresence;
+    pythonSend( { setDetectsPresence: 
+            { device: this.id, value: this.detectsPresence } } );
+}
+
+
+Device.prototype.checkLink = function() {
+    var chDL = this.childDevices.length;
+    for ( var c = 0; c < chDL; c++ )
+        this.childDevices[ c ].checkLink();
+    if ( this.linked ) {
+        if ( this.operation && this.parentDevice.operation ) {
+            pythonSend( { linkOperation: 
+                    { link: true, id: this.operation.id } } );
+        } else if ( this.active && !this.parentDevice.active ) {
+            this.parentDevice.click();
+        } else if ( this.parentDevice.active && !this.active ) {
+            this.click();
+        }
+    } else {
+        if ( this.operation && this.operation.parentOperation )
+            pythonSend( { linkOperation:
+                    { link: false, id: this.operation.id } } );
+    }
+}
+
 Device.prototype.update = function( data ) {
     for ( var prop in data ) {
         if ( prop == 'services' ) {
@@ -65,7 +99,7 @@ Device.prototype.update = function( data ) {
 
 Device.prototype.click = function() {
     pythonSend( { signal: { device: this.id, 
-            type: this.active ? 'stop' : 'start' } } );    
+            type: this.active ? 'stop' : 'start' } } );     
 }
 
 Device.prototype.setCarData = function( carData, manual ) {
@@ -137,7 +171,11 @@ function Operation( data, $scope ) {
 
 Operation.prototype._detailData = function() { 
     var data = {};
-    for ( var dId in this.details ) {
+    var details = angular.merge( {}, this.details );
+    angular.forEach( this.childOperations, function( val ) {
+            details = angular.merge( details, val.details );
+            } );
+    for ( var dId in details ) {
         var devices = this.$scope.devices;
         for ( var sId in devices[ dId ].services ) {
             if ( !( sId in data ) ) {
@@ -147,9 +185,9 @@ Operation.prototype._detailData = function() {
                         qty: 0,
                         id: sId };
             }
-            if ( sId in this.details[dId] ) {
-                data[sId].total += this.details[dId][sId].total;
-                data[sId].qty += this.details[dId][sId].qty;
+            if ( sId in details[dId] ) {
+                data[sId].total += details[dId][sId].total;
+                data[sId].qty += details[dId][sId].qty;
             }
         }
     }
@@ -203,6 +241,11 @@ Operation.prototype.update = function( data ) {
             this.setDevice( data.device );
         } else if ( prop == 'car' ) {
             this.setCar( data.car );
+        } else if ( prop == "parentOperation" ) {
+            var parentOp = 
+                this.$scope.operations[ data.parentOperation ] ;
+            this.parentOperation = parentOp;
+            parentOp.childOperations.push( this );
         } else if ( prop == 'details' ) {
             for ( var deviceId in data.details ) {
                 if ( !( deviceId in this.details ) ) {
@@ -301,12 +344,15 @@ Operation.prototype.setDevice = function( deviceId ) {
         this.device.operation = this;
         if ( this.device.carDataModified ) 
             this.setCarData( this.device.carData, true );
+        this.device.checkLink();
     } else {
         this.doStop();
     }
 };
 
 Operation.prototype.doStop = function() {
+    if ( this.parenOperation )
+        return;
     var ob = this.$scope.operationsButtons;
     var rows = ob.length;
     for ( var row = 0; row < rows; row++ ) {
@@ -322,13 +368,15 @@ Operation.prototype.doStop = function() {
     }
     if ( this.cell == null )
         this.$scope.operationsQueue.push( this );
-    if ( this.device.operation == this ) {
+    if ( this.device && this.device.operation == this ) {
         this.device.operation = null;
         for ( var id in this.device.services ) {
             this.device.services[ id ].operationDetail = null;
         }
         this.device.setCarData( new CarData() );
     }
+    if ( this.carData && this.carData.car && this.carData.car.notpayed )
+        this.updateTotal();
 };
 
 function OperationDetail( operation, device, service, data ) {
@@ -368,9 +416,9 @@ function formatSeconds( time ) {
 
 }
 
-function formatSum( sum ) {
-    if ( sum == 0 ) {
-        return "";
+function formatSum( sum, z ) {
+    if ( sum == null || sum == 0 ) {
+        return z ? '0' : "";
     } else if ( sum < 1 ) {
         return "1";
     } else {
@@ -447,6 +495,15 @@ CarData.prototype.setCar = function( car ) {
     this.car = car;
 };
 
+function AutoSession() {
+    this.auto = true;
+    this.carData = new CarData();
+}
+
+AutoSession.prototype.setCarData = function( carData ) {
+    this.carData = carData.copy();
+}
+
 function Keyboard() {
     this.keys = [ [ [ '1', '2', '3', '4', '5', '6', '7', '8', 
                     '9', '0' ] ],
@@ -488,9 +545,11 @@ Keyboard.prototype.onClientButton = function( client ) {
 };
 
 Keyboard.prototype.clearStates = function() {
-    if ( this.carData.noLP || this.carData.serviceMode ) {
+    if ( this.carData.noLP || this.carData.serviceMode || 
+            this.carData.client ) {
         this.carData.noLP = false;
         this.carData.serviceMode = false;
+        this.carData.client = null;
         this.value = '';
     }
 };
@@ -533,7 +592,7 @@ Keyboard.prototype.open = function( target ) {
             target : target.operation;
     } else{
         this.target = target;
-        if ( target.stop == null ) 
+        if ( target instanceof Operation && target.stop == null ) 
             this.device = target.device;
     }
     this.carData = target.carData.copy();
@@ -572,17 +631,29 @@ Keyboard.prototype.cleanup = function() {
     this.clear();
 };
 
-function SessionWindow() {
+function SessionWindow( $scope ) {
     this.visible = false;
     this.auto = false;
     this.operation = null;
+    this.$scope = $scope;
 };
 
 SessionWindow.prototype.open = function( operation ) {
-    if ( !( 'id' in operation ) )
+    if ( !( 'id' in operation ) && !operation.auto )
         return;
     this.operation = operation;
     this.visible = true;
+}
+
+SessionWindow.prototype.openAuto = function() {
+    this.open( new AutoSession() );            
+    this.setAutoDevice( this.autoDeviceDefault );
+}
+
+SessionWindow.prototype.setAutoDevice = function( ad ) {
+    this.operation.device = ad;
+    this.operation.total = ad.defPrice;
+    this.operation.stringTotal = ad.defPrice;
 }
 
 SessionWindow.prototype.hide = function() {
@@ -591,9 +662,74 @@ SessionWindow.prototype.hide = function() {
 }
 
 SessionWindow.prototype.close = function( pay ) {
-    this.operation.closeQuery( pay );
+    var cd = this.operation.carData;
+    if ( cd.car == null && !cd.noLP
+            && !cd.serviceMode && 
+            cd.client == null ) {
+        this.carAlert = true;
+        var sessionWindow = this;
+        var alertCount = 5;
+        var intId = setInterval( 
+                function() {
+                    sessionWindow.$scope.$apply( function() {
+                        sessionWindow.carAlert = !sessionWindow.carAlert; } );
+                    alertCount--;
+                    if ( alertCount == 0 ) {
+                        clearInterval( intId );
+                    }
+                    }, 1000 );
+        return;
+    }
+    if ( this.operation.auto ) 
+        pythonSend( { autoOperation: 
+            { device: this.operation.device.id,
+                carData: this.operation.carData,
+                total: this.operation.total,
+                pay: pay ? this.operation.total : 0 } } );
+    else
+        this.operation.closeQuery( pay );
     this.hide();
 }
+
+function ShiftWindow() {
+    this.visible = false;
+}
+
+ShiftWindow.prototype.show = function() {
+    this.visible = true;
+    pythonSend( { getShiftData: 1 } );
+}
+
+ShiftWindow.prototype.shiftQueryResult = function( data ) {
+    this.operatorId = data.operator_id;
+    if ( !this.operatorId ) {
+        this.operators.splice( 0, 0, 
+            { id:0, name: 'Выберите оператора' } );
+        this.operatorId = 0;
+    } else if ( !this.operators[0].id )
+        this.operators.splice( 0, 1 );
+    this.setSelectedOperator();
+    this.start = data.start;
+    this.total = formatSum( data.total, true );
+    this.notpayed = formatSum( data.notpayed, true );
+    this.qty = data.qty;
+}
+
+ShiftWindow.prototype.newShiftQuery = function( operatorId ) {
+    if ( confirm( "Закрыть смену?" ) )
+        pythonSend( { newShift: { operator: this.selectedOperator.id } } );
+    else
+        this.setSelectedOperator();
+}
+
+ShiftWindow.prototype.setSelectedOperator = function() {
+    var opId = this.operatorId;
+    var selected = this.operators.filter( 
+            function( o ) { return o.id == opId; } );
+    this.selectedOperator = selected[0];
+}
+
+
 
 var washApp = angular.module('washApp', [ 'ngSanitize' ]);
 var updater;
@@ -614,7 +750,8 @@ washApp.controller('washCtrl', function($scope) {
         }
         $scope.operationsQueue = [];
         $scope.keyboard = new Keyboard();
-        $scope.sessionWindow = new SessionWindow();
+        $scope.sessionWindow = new SessionWindow( $scope );
+        $scope.shiftWindow = new ShiftWindow();
         $scope.autoDevices = [];
 
         updater = function( d ) {
@@ -625,66 +762,120 @@ washApp.controller('washCtrl', function($scope) {
 
         rawUpdater = function( d ) {
          console.log( JSON.stringify( d ) );
-                if ( 'create' in d ) {
+            if ( 'create' in d ) {
 //                    console.log( JSON.stringify( d ) );
-                    if ( 'devices' in d ) {
-                        $scope.devices = {};
-                        var tmpDevices = [];
-                        $scope.autoDevices = [];
-                        for ( var id in d.devices ) {
-                            if ( !d.devices[ id ].auto ) {
-                                var device = 
-                                    new Device( d.devices[ id ] );
-                                tmpDevices.push( device );
-                                $scope.devices[ id ] = device;
-                            } else {
-                                $scope.autoDevices.push(
-                                    { id: d.devices[ id ].id,
-                                    defPrice: d.devices[ id ].defPrice,
-                                    name: d.devices[ id ].name } );
-                            }
+                if ( 'devices' in d ) {
+                    $scope.devices = {};
+                    var tmpDevices = [];
+                    $scope.autoDevices = [];
+                    for ( var id in d.devices ) {
+                        if ( !d.devices[ id ].auto ) {
+                            var device = 
+                                new Device( d.devices[ id ] );
+                            tmpDevices.push( device );
+                            $scope.devices[ id ] = device;
+                        } else {
+                            var params = ( new X2JS() 
+                                ).xml_str2json(
+                                d.devices[ id ].paramsXML ).params;
+                            var ad =
+                                { id: id,
+                                defPrice: params._default,
+                                name: params._name,
+                                isDef: params._default_device };
+                            $scope.autoDevices.push( ad );
+                            if ( ad.isDef )
+                                $scope.sessionWindow.autoDeviceDefault 
+                                    = ad;
                         }
-                        tmpDevices.sort( function( a, b ) 
-                            { return ( a.name > b.name ); } );
-                        var dLength = tmpDevices.length;
-                        for ( var c = 0; c < dLength / 2; c++ ) {
-                            $scope.sortedDevices.push( [] );
-                        }
-                        for ( var c = 0; c < dLength; c++ ) {
-                            $scope.sortedDevices[ Math.floor( c / 2 ) 
-                                ].push( tmpDevices[ c ] );
-                        }
+                    }
 
+                    var childDevices = tmpDevices.filter( function( d ) {
+                        return d.parentId; } );                    
+                    var chDL = childDevices.length;
+                    var pairedDevices = [];
+                    for ( var c = 0; c < chDL; c++ ) {
+                        var parentD = $scope.devices[
+                            childDevices[ c ].parentId ];
+                        pairedDevices.push( 
+                            [ parentD,
+                                childDevices[ c ] ] );
+                        parentD.childDevices = [ childDevices[ c ] ];
+                        childDevices[ c ].parentDevice = parentD;
                     }
-                    if ( 'operations' in d ) {
-                        for ( var id in d.operations ) {
-                            $scope.operations[ id ] = 
-                                new Operation( d.operations[ id ], 
-                                        $scope );
-                        }
+
+                    var singleDevices = tmpDevices.filter( 
+                        function( d ) {
+                        for ( var c = 0; c < chDL; c++ )
+                            if ( d.id == childDevices[ c ].parentId ||
+                                d == childDevices[ c ] )
+                                return false;
+                        return true;
+                        } );
+                    singleDevices.sort( function( a, b ) 
+                        { return ( a.name > b.name ); } );
+                
+           
+                    var sDL = singleDevices.length;
+                    for ( var c = 0; c < ( sDL - 1 ) / 2; c++ ) 
+                        $scope.sortedDevices.push( [ singleDevices[ c ], 
+                                singleDevices[ c + 1 ] ] );
+                    if ( sDL % 2 )
+                        $scope.sortedDevices.push( 
+                                [ singleDevices[ sDL - 1 ] ] );
+                    $scope.sortedDevices = 
+                        $scope.sortedDevices.concat( pairedDevices );
+                    $scope.sortedDevices.sort( function( a, b ) 
+                        { return ( a[0].name > b[0].name ); } );
+
+
+                }
+                if ( 'operations' in d ) {
+                    for ( var id in d.operations ) {
+                        $scope.operations[ id ] = 
+                            new Operation( d.operations[ id ], 
+                                    $scope );
                     }
-                    if ( 'cars' in d  ) {
-                        $scope.keyboard.carQueryResult( d.cars );
-                    }
-                    if ( 'clientButtons' in d ) {
-                        $scope.keyboard.clientButtons = d.clientButtons;
-                    }
-                } else {
-                    if ( 'lpHints' in d ) {
-                        $scope.keyboard.hintsQueryResult(
-                            d.lpHints )
-                        return;
-                    }
-                    for ( var type in d ) {
-                        for ( var id in d[ type ] ) {
-                            //console.log( type );
-                            //console.log( $scope[ type ][ id ] );
-                            $scope[ type ][ id ].update( 
-                                    d[ type ][ id ] );
-                        }
-                    } 
+                    for ( var id in d.operations ) 
+                        if ( d.operations[ id ].parentOperation )
+                            $scope.operations[ id ].update(
+                                { parentOperation: 
+                                d.operations[ id ].parenOperation } );
+
+                }
+                if ( 'cars' in d  ) {
+                    $scope.keyboard.carQueryResult( d.cars );
+                }
+                if ( 'clientButtons' in d ) {
+                    $scope.keyboard.clientButtons = d.clientButtons;
+                }
+                if ( 'operators' in d ) {
+                    $scope.shiftWindow.operators = d.operators;
+                }
+            } else {
+                if ( 'lpHints' in d ) {
+                    $scope.keyboard.hintsQueryResult(
+                        d.lpHints )
+                    return;
                 } 
-        };
+                else if ( 'shiftData' in d ) {
+                    console.log( JSON.stringify( d ) );
+
+                    $scope.shiftWindow.shiftQueryResult(
+                            d.shiftData );
+                    return;
+                }
+
+                for ( var type in d ) {
+                    for ( var id in d[ type ] ) {
+                        //console.log( type );
+                        //console.log( $scope[ type ][ id ] );
+                        $scope[ type ][ id ].update( 
+                                d[ type ][ id ] );
+                    }
+                } 
+            } 
+    };
 
 
 
