@@ -19,7 +19,7 @@
     <body ng-controller="washCtrl">
         <table id="main">
             <tr ng-repeat="row in sortedDevices">
-                <td ng-repeat-start="device in row" ng-if="$last">
+                <td ng-repeat-start="device in row" ng-if="$last && row.length > 1">
                     <!--img ng-if="device.parentId" 
                         ng-src="{{'images/icon_connect_' + 
                         ( device.linked ? 'on' : 'off' ) + '.png'}}"
@@ -151,17 +151,17 @@
                 <tr>
                     <td id="session_time">
                         <span class="wash">
-                            {{sessionWindow.operation.device.name}}
+                            {{sessionWindow.operations.device.name}}
                         </span><br/>
                         <span class="start">
-                            {{sessionWindow.operation.start}}
+                            {{sessionWindow.operations.start}}
                         </span><br/>
                         <span class="stop">
-                            {{sessionWindow.operation.stop}}
+                            {{sessionWindow.operations.stop}}
                         </span>
                     </td>
-                    <td id="session_number" ng-click="keyboard.open( sessionWindow.operation )"
-                        ng-bind-html="sessionWindow.operation.carData.caption"
+                    <td id="session_number" ng-click="keyboard.open( sessionWindow.operations )"
+                        ng-bind-html="sessionWindow.operations.carData.caption"
                         ng-class="{'alert': sessionWindow.carAlert}"></td>
                     <td id="key_home" ng-click="sessionWindow.hide();">
                         <img src="images/icon_home.png" />
@@ -169,10 +169,10 @@
                 </tr>
             </table>
             <div id="payment_data">
-                <div id="session_payment" ng-if="!sessionWindow.operation.carData.serviceMode &&
-                    sessionWindow.operation.carData.client == null">
-                    <div id="balance_info" ng-if="sessionWindow.operation.carData.car.notpayed">
-                        <span ng-repeat="item in sessionWindow.operation.carData.car.notpayed">
+                <div id="session_payment" ng-if="!sessionWindow.operations.carData.serviceMode &&
+                    sessionWindow.operations.carData.client == null">
+                    <div id="balance_info" ng-if="sessionWindow.operations.carData.car.notpayed">
+                        <span ng-repeat="item in sessionWindow.operations.carData.car.notpayed">
                             {{item.start}} долг: {{item.total}}
                             руб.<br/>
                         </span>
@@ -185,7 +185,7 @@
                                 </div>
                             </td>
                             <td id="session_summ" no-ng-click="session.showKeyboard()">
-                                {{sessionWindow.operation.stringTotal}}
+                                {{sessionWindow.operations.stringTotal}}
                             </td>
                             <td class="btns">
                                 <div id="btn_yes" ng-click="sessionWindow.close( true )">
@@ -195,8 +195,8 @@
                         </tr>
                     </table>
                 </div>
-                <div id="session_service" ng-if="sessionWindow.operation.carData.serviceMode || 
-                    sessionWindow.operation.carData.client != null">
+                <div id="session_service" ng-if="sessionWindow.operations.carData.serviceMode || 
+                    sessionWindow.operations.carData.client != null">
                     <div id="balance_info"></div>
                     <table id="session_dispatcher">
                         <tr>
@@ -209,17 +209,17 @@
               
             </div>
             <div id="session_data">
-                <table id="session_info" ng-if="!sessionWindow.operation.auto">
+                <table id="session_info" ng-if="!sessionWindow.operations.auto">
                     <tr>
                         <td colspan="2" class="session_info_top" 
-                            ng-repeat="item in sessionWindow.operation.detailData | orderBy:'id'">
+                            ng-repeat="item in sessionWindow.operations.detailData | orderBy:'id'">
                             {{item.name}}
                         </td>
                     </tr>
                     <tr>
                         <td class="session_info_time" 
                             ng-repeat-start=
-                            "item in sessionWindow.operation.detailData | orderBy:'id'">
+                            "item in sessionWindow.operations.detailData | orderBy:'id'">
                             {{item.time}}
                         </td>
                         <td class="session_info_time" 
@@ -228,12 +228,12 @@
                         </td>
                     </tr>
                 </table>
-                <table id="alt_wash" ng-if="sessionWindow.operation.auto">
+                <table id="alt_wash" ng-if="sessionWindow.operations.auto">
                     <tr>
                         <td id="auto_device_{@id}" class="device" 
                             ng-click="sessionWindow.setAutoDevice( device );"
                             ng-repeat-start="device in autoDevices"
-                            ng-class="{'active': sessionWindow.operation.device == device}">
+                            ng-class="{'active': sessionWindow.operations.device == device}">
                             {{device.name}}
                         </td>
                         <td ng-if="!$last" ng-repeat-end>&nbsp;</td>
@@ -279,14 +279,14 @@
             <div id="sensor_title">Датчики присутствия</div>
                 <table id="sensor">
                     <tr id="images">
-                        <td ng-repeat="device in devices"
+                        <td ng-repeat="device in sortedDevicesArray"
                             ng-class="{'sensor_on': device.detectsPresence,
                             'sensor_off': !device.detectsPresence }">
                             {{device.name}}
                         </td>
                     </tr>
                     <tr id="buttons">
-                        <td ng-repeat="device in devices">
+                        <td ng-repeat="device in sortedDevicesArray">
                             <input type="button" 
                                 ng-click="device.togglePresenceDetector()"
                                 value="{{device.detectsPresence ? 'Выключить' : 'Включить'}}"/>

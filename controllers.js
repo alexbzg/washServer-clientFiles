@@ -126,6 +126,10 @@ Service.prototype.update = function( data ) {
 }
 
 function Operation( data, $scope ) {
+    Object.defineProperty( this, 'caption', 
+        { get: this._caption } );
+    Object.defineProperty( this, 'decCaption', 
+        { get: this._decCaption } );
     this.details = {};
     this.detailData = [];
     this.id = data.id;
@@ -133,19 +137,13 @@ function Operation( data, $scope ) {
     this.cell = null;
     this.stop = data.stop;
     this.start = data.start;
-    this.setDevice( data.device );
+    var carData = new CarData();
+    carData.setCar( data.car );
+    carData.setNoLP( data.noLP );
+    carData.setServiceMode( data.serviceMode );
+    carData.client = data.client;
+    this.setCarData( carData );
     this.services = {};
-    if ( this.device.operation == this && 
-            this.device.carDataModified )
-        this.setCarData( this.device.carData );
-    else {
-        var carData = new CarData();
-        carData.setCar( data.car );
-        carData.setNoLP( data.noLP );
-        carData.setServiceMode( data.serviceMode );
-        carData.client = data.client;
-        this.setCarData( carData );
-    }
     for ( var deviceId in data.details ) {
         this.details[ deviceId ] = {};
         for ( var serviceId in data.details[ deviceId ] ) {
@@ -155,17 +153,17 @@ function Operation( data, $scope ) {
                         data.details[ deviceId ][ serviceId ] );
         }
     }
-    if ( !( this.carData.car && this.carData.car.notpayed ) )
-        this.updateTotal();
+//    if ( !( this.carData.car && this.carData.car.notpayed ) )
+//        this.updateTotal();
     for ( var prop in data ) {
         if ( !( prop in this ) ) {
             this[ prop ] = data[ prop ];
         }
     }
-    Object.defineProperty( this, 'caption', 
-        { get: this._caption } );
-    Object.defineProperty( this, 'decCaption', 
-        { get: this._decCaption } );
+    this.setDevice( data.device );
+    if ( this.device.operation == this && 
+            this.device.carDataModified )
+        this.setCarData( this.device.carData );
 
 }
 
@@ -216,18 +214,9 @@ Operation.prototype.closeQuery = function( pay ) {
     pythonSend( toSend );
 }
 
-Operation.prototype.setCell = function( row, cell ) {
-    this.$scope.operationsButtons[ row ][ cell ] = this;
-    this.cell = [ row, cell ];
-}
 
 Operation.prototype.doClose = function() {
-    if ( this.$scope.operationsQueue.length > 0 ) 
-        this.$scope.operationsQueue.shift().setCell( 
-                this.cell[0], this.cell[1] )
-    else
-        this.$scope.operationsButtons[ this.cell[0] ][
-            this.cell[1] ] = {};
+    this.button.removeOperation( this );
     
 }
 
@@ -295,6 +284,12 @@ Operation.prototype._decCaption = function() {
 };
 
 
+Operation.prototype.hasCar = function() {
+    return this.carData && this.carData.car && 
+            !this.carData.serviceMode &&
+            !this.carData.noLP;
+}
+
 Operation.prototype.updateTotal = function() {
     this.total = 0;
     this.detailData = [];
@@ -323,17 +318,6 @@ Operation.prototype.updateTotal = function() {
         operation.total += Number( value.stringTotal );
         } );
 
-    if ( this.carData.car && this.carData.car.notpayed ) {
-        if ( this.total > 50 && 
-                !( this.id in this.carData.car.notpayed ))  
-            this.carData.car.notpayed[ this.id ] = { id: this.id,
-                total: this.total, start: this.start };
-        this.total = 0;
-        angular.forEach( this.carData.car.notpayed, function( value ) {
-            value.total = formatSum( value.total )
-            operation.total += Number( value.total );
-            } );
-    }
    
     this.stringTotal = formatSum( this.total );
 };
@@ -344,6 +328,10 @@ Operation.prototype.setDevice = function( deviceId ) {
         this.device.operation = this;
         if ( this.device.carDataModified ) 
             this.setCarData( this.device.carData, true );
+        if ( deviceId in this.details )
+            for ( var sId in this.details[ deviceId ] )
+                this.device.services[ sId ].operationDetail =
+                    this.details[ deviceId ][ sId ];            
         this.device.checkLink();
     } else {
         this.doStop();
@@ -351,23 +339,14 @@ Operation.prototype.setDevice = function( deviceId ) {
 };
 
 Operation.prototype.doStop = function() {
-    if ( this.parenOperation )
+    if ( this.parentOperation )
         return;
-    var ob = this.$scope.operationsButtons;
-    var rows = ob.length;
-    for ( var row = 0; row < rows; row++ ) {
-        for ( var cell = 0; 
-                cell < this.$scope.operationsButtonsRows[ row ]; 
-                cell++ )
-            if ( !( 'id' in ob[ row ][ cell ] ) ) {
-                this.setCell( row, cell );
-                break;
-            }
-        if ( this.cell != null )
-            break;
-    }
-    if ( this.cell == null )
-        this.$scope.operationsQueue.push( this );
+    if ( this.hasCar() && 
+        this.carData.car.id in this.$scope.operationsButtonsByCar )
+        this.$scope.operationsButtonsByCar[ 
+            this.carData.car.id ].addOperation( this );
+    else
+        new OperationButton( this );
     if ( this.device && this.device.operation == this ) {
         this.device.operation = null;
         for ( var id in this.device.services ) {
@@ -383,9 +362,8 @@ function OperationDetail( operation, device, service, data ) {
     this.operation = operation;
     this.device = device;
     this.service = service;
-    if ( operation.device == this.device && !operation.stop ) {
+    if ( !operation.stop && operation.device == device )
         this.service.operationDetail = this;
-    }
     this.update( data );
 };
 
@@ -463,6 +441,23 @@ CarData.prototype.decCaption = function() {
         return this.car.decLP;
     else
         return this.caption;
+}
+
+CarData.prototype.equals = function( carData ) {
+    if ( ( this.car == null && carData.car != null ) ||
+            ( this.car != null && carData.car == null ) ||
+            ( this.car != null && carData.car != null &&
+              this.car.id != carData.car.id ) )
+        return false;
+    if ( ( this.client == null && carData.client != null ) ||
+            ( this.client != null && carData.client == null ) ||
+            ( this.client != null && carData.client != null &&
+              this.client.id != carData.client.id ) )
+        return false;
+    if ( ( this.serviceMode != carData.serviceMode ) ||
+            ( this.noLP != carData.noLP ) )
+        return false;
+    return true;
 }
 
 CarData.prototype.setServiceMode = function( value ) {
@@ -638,10 +633,10 @@ function SessionWindow( $scope ) {
     this.$scope = $scope;
 };
 
-SessionWindow.prototype.open = function( operation ) {
-    if ( !( 'id' in operation ) && !operation.auto )
+SessionWindow.prototype.open = function( operations ) {
+    if ( !( 'operations' in operations ) && !operations.auto )
         return;
-    this.operation = operation;
+    this.operations = operations;
     this.visible = true;
 }
 
@@ -651,9 +646,9 @@ SessionWindow.prototype.openAuto = function() {
 }
 
 SessionWindow.prototype.setAutoDevice = function( ad ) {
-    this.operation.device = ad;
-    this.operation.total = ad.defPrice;
-    this.operation.stringTotal = ad.defPrice;
+    this.operations.device = ad;
+    this.operations.total = ad.defPrice;
+    this.operations.stringTotal = ad.defPrice;
 }
 
 SessionWindow.prototype.hide = function() {
@@ -662,7 +657,7 @@ SessionWindow.prototype.hide = function() {
 }
 
 SessionWindow.prototype.close = function( pay ) {
-    var cd = this.operation.carData;
+    var cd = this.operations.carData;
     if ( cd.car == null && !cd.noLP
             && !cd.serviceMode && 
             cd.client == null ) {
@@ -672,7 +667,9 @@ SessionWindow.prototype.close = function( pay ) {
         var intId = setInterval( 
                 function() {
                     sessionWindow.$scope.$apply( function() {
-                        sessionWindow.carAlert = !sessionWindow.carAlert; } );
+                        sessionWindow.carAlert = 
+                            !sessionWindow.carAlert; 
+                            } );
                     alertCount--;
                     if ( alertCount == 0 ) {
                         clearInterval( intId );
@@ -680,15 +677,170 @@ SessionWindow.prototype.close = function( pay ) {
                     }, 1000 );
         return;
     }
-    if ( this.operation.auto ) 
+    if ( this.operations.auto ) 
         pythonSend( { autoOperation: 
-            { device: this.operation.device.id,
-                carData: this.operation.carData,
-                total: this.operation.total,
-                pay: pay ? this.operation.total : 0 } } );
+            { device: this.operations.device.id,
+                carData: this.operations.carData,
+                total: this.operations.total,
+                pay: pay ? this.operations.total : 0 } } );
     else
-        this.operation.closeQuery( pay );
+        this.operations.closeQuery( pay );
     this.hide();
+}
+
+function OperationButton( operation ) {
+    this.$scope = operation.$scope;
+    this.operations = [];
+    this.addOperation( operation );
+    var ob = this.$scope.operationsButtons;
+    var rows = ob.length;
+    for ( var row = 0; row < rows; row++ ) {
+        for ( var cell = 0; 
+                cell < this.$scope.operationsButtonsRows[ row ]; 
+                cell++ )
+            if ( !( 'operations' in ob[ row ][ cell ] ) ) {
+                this.setCell( row, cell );
+                break;
+            }
+        if ( this.cell != null )
+            break;
+    }
+    if ( this.cell == null )
+        this.$scope.operationsButtonsQueue.push( this );
+}
+
+OperationButton.prototype.setCell = function( row, cell ) {
+    this.$scope.operationsButtons[ row ][ cell ] = this;
+    this.cell = [ row, cell ];
+}
+
+
+OperationButton.prototype.updateOpData = function() {
+    if ( this.operations[0].hasCar() ) {
+        this.car = this.operations[0].carData.car;
+        this.$scope.operationsButtonsByCar[ this.car.id ] = this;
+    } else {
+        if ( this.car != null )
+            delete this.$scope.operationsButtonsByCar[ this.car.id ];
+        this.car = null;
+    }
+    this.carData = this.operations[0].carData;
+    var devices = [];
+    this.start = this.operations[0].start;
+    this.stop = this.operations[0].stop;
+    var start = this.operations[0].startEpoch;
+    var stop = this.operations[0].stopEpoch;
+    var opL = this.operations.length;
+    for ( var c = 0; c < opL; c++ ) {
+        var op = this.operations[c];
+        if ( devices.indexOf( op.device.name ) == -1 )
+            devices.push( op.device.name );
+        if ( start > op.startEpoch ) {
+            start = op.startEpoch;
+            this.start = op.start;
+        }
+        if ( stop < op.stopEpoch ) {
+            stop = op.stopEpoch;
+            this.stop = op.stop;
+        }
+    }
+    this.device = { name: devices.join( ', ' ) };
+    this.updateTotal();
+    this.caption = this.operations[0].caption;
+    this.decCaption = this.operations[0].decCaption;
+}
+
+OperationButton.prototype.addOperation = function( operation ) {
+    this.operations.push( operation );
+    operation.button = this;
+    this.updateOpData();
+}
+
+OperationButton.prototype.closeQuery = function( pay ) {
+    var opL = this.operations.length;
+    for ( var c = 0; c < opL; c++ )
+        this.operations[ c ].closeQuery( pay );
+}
+
+OperationButton.prototype.setCarData = function( carData, manual ) {
+    var op = this.operations[0];
+    if ( !carData.equals( op.carData ) ) {
+        this.operations[0].setCarData( carData, manual );
+        if ( this.operations.length > 1 ) {
+            this.removeOperation( op );
+            new OperationButton( op );
+        } else  
+            this.updateOpData();
+    }
+}
+
+OperationButton.prototype.removeOperation = function( operation ) {
+    var opIdx = this.operations.indexOf( operation );
+    this.operations.splice( opIdx, 1 );
+    operation.button = null;
+    if ( Object.keys( this.operations ).length == 0 ) {
+        if ( this.$scope.operationsButtonsQueue.length > 0 ) 
+            this.$scope.operationsButtonsQueue.shift().setCell( 
+                    this.cell[0], this.cell[1] )
+        else
+            this.$scope.operationsButtons[ this.cell[0] ][
+                this.cell[1] ] = {};
+        if ( this.car )
+            delete this.$scope.operationsButtonsByCar[ this.car.id ];
+    } else {
+        this.updateOpData();
+    }
+}
+
+OperationButton.prototype.updateTotal = function() {
+    this.detailData = [];
+    this.total = 0;
+    var opL = this.operations.length;
+    for ( var c = 0; c < opL; c++ ) {
+        var op = this.operations[ c ];
+        for ( var dId in op.details ) {
+            var devices = this.$scope.devices;
+            for ( var sId in devices[ dId ].services ) {
+                if ( !( sId in this.detailData ) ) {
+                    this.detailData[ sId ] = 
+                        { name: devices[dId].services[sId].name,
+                            total: 0,
+                            qty: 0,
+                            id: sId };
+                }
+                if ( sId in op.details[dId] ) {
+                    this.detailData[sId].total += 
+                        Number( op.details[dId][sId].total );
+                    this.detailData[sId].qty += 
+                        Number( op.details[dId][sId].qty );
+                }
+            }
+        }
+    }
+    var ob = this;
+    angular.forEach( this.detailData, function( value ) {
+        value.stringTotal = formatSum( value.total );
+        value.time = formatSeconds( value.qty );
+        ob.total += Number( value.stringTotal );
+        } );
+
+    if ( this.carData.car && this.carData.car.notpayed ) {
+        for ( opId in this.operations ) {
+            var op = this.operations[opId];
+            if ( op.total > 50 && 
+                !( opId in this.carData.car.notpayed ) )  
+                this.carData.car.notpayed[ opId ] = { id: opId,
+                    total: op.total, start: op.start };
+        }
+        this.total = 0;
+        angular.forEach( this.carData.car.notpayed, function( value ) {
+            value.total = formatSum( value.total )
+            ob.total += Number( value.total );
+            } );
+    }
+   
+    this.stringTotal = formatSum( this.total );
+
 }
 
 function ShiftWindow() {
@@ -733,11 +885,23 @@ ShiftWindow.prototype.setSelectedOperator = function() {
 
 var washApp = angular.module('washApp', [ 'ngSanitize' ]);
 var updater;
+var pageBuilt = false;
 var rawUpdater;
+
+function getHeight() {
+    var body = document.body,
+        html = document.documentElement;
+
+    return Math.max( body.scrollHeight, 
+            body.offsetHeight, html.clientHeight, 
+            html.scrollHeight, html.offsetHeight );
+
+}
 
 washApp.controller('washCtrl', function($scope) {
 
         $scope.sortedDevices =  [];  
+        $scope.sortedDevicesArray = [];
         $scope.operations = {};
         $scope.operationsButtonsRows = [ 5, 5 ];
         var obrCount = $scope.operationsButtonsRows.length;
@@ -748,7 +912,8 @@ washApp.controller('washCtrl', function($scope) {
                 cc++ )
                 $scope.operationsButtons[ rc ][ cc ] = {};
         }
-        $scope.operationsQueue = [];
+        $scope.operationsButtonsQueue = [];
+        $scope.operationsButtonsByCar = {};
         $scope.keyboard = new Keyboard();
         $scope.sessionWindow = new SessionWindow( $scope );
         $scope.shiftWindow = new ShiftWindow();
@@ -757,11 +922,25 @@ washApp.controller('washCtrl', function($scope) {
         updater = function( d ) {
             $scope.$apply( function() {
                 rawUpdater( d )
-            } );
-        };
+                });
+            if ( pageBuilt ) {
+                pageBuilt = false;
+                var height = getHeight()
+                console.log( height );
+                console.log( window.innerHeight );
+                var scale = 1;
+                while ( height * scale > window.innerHeight ) {
+                    scale *= 0.95;
+                    document.body.style.webkitTransform = 
+                    //Chrome, Opera, Safari
+                    document.body.style.msTransform =           // IE 9
+                    document.body.style.transform = 'scaleY(' +
+                            scale + ')'
+                }
+            } };
 
         rawUpdater = function( d ) {
-         console.log( JSON.stringify( d ) );
+//console.log( JSON.stringify( d ) );
             if ( 'create' in d ) {
 //                    console.log( JSON.stringify( d ) );
                 if ( 'devices' in d ) {
@@ -774,6 +953,7 @@ washApp.controller('washCtrl', function($scope) {
                                 new Device( d.devices[ id ] );
                             tmpDevices.push( device );
                             $scope.devices[ id ] = device;
+                            $scope.sortedDevicesArray.push( device );
                         } else {
                             var params = ( new X2JS() 
                                 ).xml_str2json(
@@ -789,6 +969,10 @@ washApp.controller('washCtrl', function($scope) {
                                     = ad;
                         }
                     }
+                    $scope.sortedDevicesArray.sort( function( a, b ) 
+                        { return ( a.name > b.name ? 1 : -1 ); } );
+
+
 
                     var childDevices = tmpDevices.filter( function( d ) {
                         return d.parentId; } );                    
@@ -813,24 +997,29 @@ washApp.controller('washCtrl', function($scope) {
                         return true;
                         } );
                     singleDevices.sort( function( a, b ) 
-                        { return ( a.name > b.name ); } );
+                        { return ( a.name > b.name ? 1 : -1 ); } );
+
                 
            
                     var sDL = singleDevices.length;
                     for ( var c = 0; c < ( sDL - 1 ) / 2; c++ ) 
-                        $scope.sortedDevices.push( [ singleDevices[ c ], 
-                                singleDevices[ c + 1 ] ] );
+                        $scope.sortedDevices.push( 
+                                [ singleDevices[ c * 2 ], 
+                                singleDevices[ c * 2 + 1 ] ] );
                     if ( sDL % 2 )
                         $scope.sortedDevices.push( 
                                 [ singleDevices[ sDL - 1 ] ] );
                     $scope.sortedDevices = 
                         $scope.sortedDevices.concat( pairedDevices );
                     $scope.sortedDevices.sort( function( a, b ) 
-                        { return ( a[0].name > b[0].name ); } );
-
+                        { return ( a[0].name > b[0].name ? 1 : -1 ); 
+                        } );
+                    pageBuilt = true;
+                    
 
                 }
                 if ( 'operations' in d ) {
+
                     for ( var id in d.operations ) {
                         $scope.operations[ id ] = 
                             new Operation( d.operations[ id ], 
@@ -865,13 +1054,14 @@ washApp.controller('washCtrl', function($scope) {
                             d.shiftData );
                     return;
                 }
-
                 for ( var type in d ) {
                     for ( var id in d[ type ] ) {
                         //console.log( type );
                         //console.log( $scope[ type ][ id ] );
                         $scope[ type ][ id ].update( 
                                 d[ type ][ id ] );
+                        if ( type == 'operations' && !( 'details' in d[type][id] ) )
+                            console.log( JSON.stringify( d[type][id] ) );
                     }
                 } 
             } 

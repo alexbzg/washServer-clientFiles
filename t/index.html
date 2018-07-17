@@ -19,7 +19,7 @@
     <body ng-controller="washCtrl">
         <table id="main">
             <tr ng-repeat="row in sortedDevices">
-                <td ng-repeat-start="device in row" ng-if="$last">
+                <td ng-repeat-start="device in row" ng-if="$last && row.length > 1">
                     <!--img ng-if="device.parentId" 
                         ng-src="{{'images/icon_connect_' + 
                         ( device.linked ? 'on' : 'off' ) + '.png'}}"
@@ -189,9 +189,12 @@
                             </td>
                             <td class="btns">
                                 <div id="btn_yes" ng-click="sessionWindow.close( true )">
-                                    ОПЛАЧЕНО
+                                    НАЛИЧНЫЕ
                                 </div>
-                            </td>
+                                <div id="btn_yes" ng-click="sessionWindow.close( true, true )">
+                                    КАРТА
+                               </div>
+                           </td>
                         </tr>
                     </table>
                 </div>
@@ -265,7 +268,8 @@
                     <td id="system_info" colspan="3">
                         <span class="shift_sum">
                             машины: {{shiftWindow.qty}}<br/>
-                            Сумма: {{shiftWindow.total}} руб.
+                            наличные: {{shiftWindow.total_cash}} руб.<br/>
+                            карты: {{shiftWindow.total_card}} руб.
                         </span><br/>
                         <span class="no_pay">
                             неоплачено {{shiftWindow.notpayed}} руб.
@@ -279,14 +283,14 @@
             <div id="sensor_title">Датчики присутствия</div>
                 <table id="sensor">
                     <tr id="images">
-                        <td ng-repeat="device in devices"
+                        <td ng-repeat="device in sortedDevicesArray"
                             ng-class="{'sensor_on': device.detectsPresence,
                             'sensor_off': !device.detectsPresence }">
                             {{device.name}}
                         </td>
                     </tr>
                     <tr id="buttons">
-                        <td ng-repeat="device in devices">
+                        <td ng-repeat="device in sortedDevicesArray">
                             <input type="button" 
                                 ng-click="device.togglePresenceDetector()"
                                 value="{{device.detectsPresence ? 'Выключить' : 'Включить'}}"/>

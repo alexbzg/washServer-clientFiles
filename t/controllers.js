@@ -209,8 +209,9 @@ Operation.prototype.setCarData = function( carData, manual ) {
         pythonSend( { setCarData: toSend } );
 };
 
-Operation.prototype.closeQuery = function( pay ) {
-    var toSend = { closeOperation: { id: this.id, pay: pay } };
+Operation.prototype.closeQuery = function( pay, card ) {
+    var toSend = 
+        { closeOperation: { id: this.id, pay: pay, card: card ? true : false } };
     pythonSend( toSend );
 }
 
@@ -646,9 +647,9 @@ SessionWindow.prototype.openAuto = function() {
 }
 
 SessionWindow.prototype.setAutoDevice = function( ad ) {
-    this.operation.device = ad;
-    this.operation.total = ad.defPrice;
-    this.operation.stringTotal = ad.defPrice;
+    this.operations.device = ad;
+    this.operations.total = ad.defPrice;
+    this.operations.stringTotal = ad.defPrice;
 }
 
 SessionWindow.prototype.hide = function() {
@@ -656,7 +657,7 @@ SessionWindow.prototype.hide = function() {
     this.visible = false;
 }
 
-SessionWindow.prototype.close = function( pay ) {
+SessionWindow.prototype.close = function( pay, card ) {
     var cd = this.operations.carData;
     if ( cd.car == null && !cd.noLP
             && !cd.serviceMode && 
@@ -682,9 +683,10 @@ SessionWindow.prototype.close = function( pay ) {
             { device: this.operations.device.id,
                 carData: this.operations.carData,
                 total: this.operations.total,
-                pay: pay ? this.operations.total : 0 } } );
-    else
-        this.operations.closeQuery( pay );
+                pay: pay ? this.operations.total : 0,
+                card: card ? true : false } } );
+    else 
+        this.operations.closeQuery( pay, card );
     this.hide();
 }
 
@@ -756,10 +758,10 @@ OperationButton.prototype.addOperation = function( operation ) {
     this.updateOpData();
 }
 
-OperationButton.prototype.closeQuery = function( pay ) {
+OperationButton.prototype.closeQuery = function( pay, card ) {
     var opL = this.operations.length;
     for ( var c = 0; c < opL; c++ )
-        this.operations[ c ].closeQuery( pay );
+        this.operations[ c ].closeQuery( pay, card );
 }
 
 OperationButton.prototype.setCarData = function( carData, manual ) {
@@ -780,7 +782,7 @@ OperationButton.prototype.removeOperation = function( operation ) {
     operation.button = null;
     if ( Object.keys( this.operations ).length == 0 ) {
         if ( this.$scope.operationsButtonsQueue.length > 0 ) 
-            this.$scope.operationsQueue.shift().setCell( 
+            this.$scope.operationsButtonsQueue.shift().setCell( 
                     this.cell[0], this.cell[1] )
         else
             this.$scope.operationsButtons[ this.cell[0] ][
@@ -863,6 +865,8 @@ ShiftWindow.prototype.shiftQueryResult = function( data ) {
     this.setSelectedOperator();
     this.start = data.start;
     this.total = formatSum( data.total, true );
+    this.total_card = formatSum( data.total_card, true );
+    this.total_cash = formatSum( data.total_cash, true );
     this.notpayed = formatSum( data.notpayed, true );
     this.qty = data.qty;
 }
@@ -885,11 +889,23 @@ ShiftWindow.prototype.setSelectedOperator = function() {
 
 var washApp = angular.module('washApp', [ 'ngSanitize' ]);
 var updater;
+var pageBuilt = false;
 var rawUpdater;
+
+function getHeight() {
+    var body = document.body,
+        html = document.documentElement;
+
+    return Math.max( body.scrollHeight, 
+            body.offsetHeight, html.clientHeight, 
+            html.scrollHeight, html.offsetHeight );
+
+}
 
 washApp.controller('washCtrl', function($scope) {
 
         $scope.sortedDevices =  [];  
+        $scope.sortedDevicesArray = [];
         $scope.operations = {};
         $scope.operationsButtonsRows = [ 5, 5 ];
         var obrCount = $scope.operationsButtonsRows.length;
@@ -910,11 +926,25 @@ washApp.controller('washCtrl', function($scope) {
         updater = function( d ) {
             $scope.$apply( function() {
                 rawUpdater( d )
-            } );
-        };
+                });
+            if ( pageBuilt ) {
+                pageBuilt = false;
+                var height = getHeight()
+                console.log( height );
+                console.log( window.innerHeight );
+                var scale = 1;
+                while ( height * scale > window.innerHeight ) {
+                    scale *= 0.95;
+                    document.body.style.webkitTransform = 
+                    //Chrome, Opera, Safari
+                    document.body.style.msTransform =           // IE 9
+                    document.body.style.transform = 'scaleY(' +
+                            scale + ')'
+                }
+            } };
 
         rawUpdater = function( d ) {
-         console.log( JSON.stringify( d ) );
+//console.log( JSON.stringify( d ) );
             if ( 'create' in d ) {
 //                    console.log( JSON.stringify( d ) );
                 if ( 'devices' in d ) {
@@ -927,6 +957,7 @@ washApp.controller('washCtrl', function($scope) {
                                 new Device( d.devices[ id ] );
                             tmpDevices.push( device );
                             $scope.devices[ id ] = device;
+                            $scope.sortedDevicesArray.push( device );
                         } else {
                             var params = ( new X2JS() 
                                 ).xml_str2json(
@@ -942,6 +973,10 @@ washApp.controller('washCtrl', function($scope) {
                                     = ad;
                         }
                     }
+                    $scope.sortedDevicesArray.sort( function( a, b ) 
+                        { return ( a.name > b.name ? 1 : -1 ); } );
+
+
 
                     var childDevices = tmpDevices.filter( function( d ) {
                         return d.parentId; } );                    
@@ -966,24 +1001,29 @@ washApp.controller('washCtrl', function($scope) {
                         return true;
                         } );
                     singleDevices.sort( function( a, b ) 
-                        { return ( a.name > b.name ); } );
+                        { return ( a.name > b.name ? 1 : -1 ); } );
+
                 
            
                     var sDL = singleDevices.length;
                     for ( var c = 0; c < ( sDL - 1 ) / 2; c++ ) 
-                        $scope.sortedDevices.push( [ singleDevices[ c ], 
-                                singleDevices[ c + 1 ] ] );
+                        $scope.sortedDevices.push( 
+                                [ singleDevices[ c * 2 ], 
+                                singleDevices[ c * 2 + 1 ] ] );
                     if ( sDL % 2 )
                         $scope.sortedDevices.push( 
                                 [ singleDevices[ sDL - 1 ] ] );
                     $scope.sortedDevices = 
                         $scope.sortedDevices.concat( pairedDevices );
                     $scope.sortedDevices.sort( function( a, b ) 
-                        { return ( a[0].name > b[0].name ); } );
-
+                        { return ( a[0].name > b[0].name ? 1 : -1 ); 
+                        } );
+                    pageBuilt = true;
+                    
 
                 }
                 if ( 'operations' in d ) {
+
                     for ( var id in d.operations ) {
                         $scope.operations[ id ] = 
                             new Operation( d.operations[ id ], 
@@ -1018,13 +1058,14 @@ washApp.controller('washCtrl', function($scope) {
                             d.shiftData );
                     return;
                 }
-
                 for ( var type in d ) {
                     for ( var id in d[ type ] ) {
                         //console.log( type );
                         //console.log( $scope[ type ][ id ] );
                         $scope[ type ][ id ].update( 
                                 d[ type ][ id ] );
+                        if ( type == 'operations' && !( 'details' in d[type][id] ) )
+                            console.log( JSON.stringify( d[type][id] ) );
                     }
                 } 
             } 

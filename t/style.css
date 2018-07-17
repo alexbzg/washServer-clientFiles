@@ -5,6 +5,9 @@ body{
 	text-align: center;
 	background-color: #ccc;
 	cursor: default;
+    -webkit-transform-origin: 0 0;
+    -ms-transform-origin: 0 0;
+    transform-origin: 0 0;
 }
 table#main{
 	width: 100%;
